@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "Stocks_telegram_bot"
+version = "0.1.0"
+package-mode = false
+description = "Stocks telegram bot"
+authors = ["Vlad <vlad111121562@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+requests = "^2.32.4"
+pandas = "^2.3.0"
+google-auth = "^2.40.3"
+google-auth-oauthlib = "^1.2.2"
+google-auth-httplib2 = "^0.2.0"
+google-api-python-client = "^2.172.0"
+python-telegram-bot = "^22.1"
+nest-asyncio = "^1.6.0"
+dotenv = "^0.9.9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

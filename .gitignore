@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment (poetry, venv, pipenv)
+.venv/
+env/
+venv/
+.venv.bak/
+
+# VSCode и другие IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# macOS
+.DS_Store
+
+# System files
+Thumbs.db
+desktop.ini
+
+# Token, секреты и ключи
+token.json
+.env
+*.pem
+
+# Poetry / pip
+poetry.lock
+*.egg-info/
+
+# Логи
+*.log
+
+# Кеш
+.cache/
+__pycache__/
+*.sqlite3
+
+# Google API credentials
+credentials.json
