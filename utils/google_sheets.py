@@ -1,25 +1,25 @@
 import os
+import json
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
-
-# === Загрузка переменных окружения из .env ===
+# === Загрузка .env (если локально запускаешь) ===
 load_dotenv()
 
-
-# === Константы из .env ===
-SCOPES = [os.getenv("SCOPES")]                   # Права доступа к Google Sheets
-SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")     # ID таблицы Google Sheets
+# === Константы ===
+SCOPES = [os.getenv("SCOPES")]                   # Права доступа
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")     # ID таблицы
 
 
 def get_google_service():
     """
-    Создаёт и возвращает авторизованный объект Google Sheets API.
-    Использует файл token.json для авторизации.
+    Создаёт авторизованный объект Google Sheets API,
+    используя переменные окружения вместо token.json.
     """
     try:
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+        token_data = json.loads(os.environ["GOOGLE_TOKEN_JSON"])  # токен
+        creds = Credentials.from_authorized_user_info(token_data, SCOPES)
         return build("sheets", "v4", credentials=creds)
     except Exception as e:
         print("❌ Ошибка при создании сервиса Google Sheets:", e)
@@ -29,16 +29,13 @@ def get_google_service():
 def get_sheet_data(sheet_name):
     """
     Получает данные с указанного листа Google Таблицы.
-
-    :param sheet_name: Название листа (например, 'Акции Снеки')
-    :return: Двумерный список строк с данными таблицы или пустой список при ошибке
     """
     try:
         service = get_google_service()
         if not service:
             raise RuntimeError("Сервис Google Sheets не инициализирован.")
 
-        range_name = f"'{sheet_name}'"  # Название листа в кавычках
+        range_name = f"'{sheet_name}'"
         result = service.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
             range=range_name
