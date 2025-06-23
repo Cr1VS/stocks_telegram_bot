@@ -1,7 +1,14 @@
 import logging
 from pathlib import Path
 from datetime import datetime 
+from dotenv import load_dotenv
+import os
+from telegram import Bot
 
+# Загружаем переменные окружения из .env файла
+load_dotenv()
+ADMIN_ID = int(os.getenv("ADMIN_ID", 0))  # из .env
+NOTIFY_USER_ID = int(os.getenv("NOTIFY_USER_ID"))  
 # === Создание папки logs, если её нет ===
 Path("logs").mkdir(parents=True, exist_ok=True)
 
@@ -85,24 +92,25 @@ def log_new_user(user_data: dict):
         logging.error(f"Ошибка при логировании нового пользователя: {e}")
 
 
-def log_user_action_to_personal_file(user_data: dict, action: str):
-    """
-    Записывает действия пользователя в его персональный лог-файл.
-    """
+async def log_user_action_to_personal_file(user_data: dict, action: str, bot=None):
     try:
         user_id = str(user_data.get("id", "unknown"))
         username = user_data.get("username", "—")
         first_name = user_data.get("first_name", "")
         last_name = user_data.get("last_name", "")
 
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_line = f"{timestamp} | {first_name} {last_name} (@{username}) | {action}"
+
+        # Запись в файл
         personal_log_path = Path(f"logs/user_{user_id}.log")
         personal_log_path.touch(exist_ok=True)
-
         with personal_log_path.open("a", encoding="utf-8") as f:
-            f.write(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
-                f"{first_name} {last_name} (@{username}) | {action}\n"
-            )
+            f.write(log_line + "\n")
+
+        # Отправка админу
+        if bot:
+            await bot.send_message(chat_id=ADMIN_ID, text=log_line)
 
     except Exception as e:
-        logging.error(f"Ошибка при записи в персональный лог-файл: {e}")
+        print(f"❌ Ошибка логирования действия: {e}")

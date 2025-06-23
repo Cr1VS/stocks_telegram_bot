@@ -1,5 +1,5 @@
 from telegram.ext import ContextTypes
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, Bot
 from datetime import datetime
 
 
@@ -138,7 +138,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }, text)
 
         # Логгируем в персональный лог
-        log_user_action_to_personal_file({
+        await log_user_action_to_personal_file({
             "id": user.id,
             "username": user.username,
             "first_name": user.first_name,
@@ -153,14 +153,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # === Обработка команд ===
         if text == "🥤 Акции Напитки":
             await send_drinks_full(context.bot, update.effective_chat.id)
+            await log_user_action_to_personal_file(
+                user_data=update.effective_user.to_dict(),
+                action=update.message.text,
+                bot=context.bot  # ✅ берём bot из context
+            )
 
         elif text == "🥡 Акции Снеки":
             await send_sneki_full(context.bot, update.effective_chat.id)
+            await log_user_action_to_personal_file(
+                user_data=update.effective_user.to_dict(),
+                action=update.message.text,
+                bot=context.bot  # ✅ берём bot из context
+            )
 
         elif text == "💧💨 Акции Аромки":
             aromki_rows = get_sheet_data("Акции Аромки")
             msg = format_aromki_message(aromki_rows)
             await send_long(context.bot, update.effective_chat.id, msg)
+            await log_user_action_to_personal_file(
+                user_data=update.effective_user.to_dict(),
+                action=update.message.text,
+                bot=context.bot  # ✅ берём bot из context
+            )
 
         elif text == "📦 Все акции":
             aromki_rows = get_sheet_data("Акции Аромки")
@@ -168,22 +183,52 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_long(context.bot, update.effective_chat.id, msg)
             await send_sneki_full(context.bot, update.effective_chat.id)
             await send_drinks_full(context.bot, update.effective_chat.id)
+            await log_user_action_to_personal_file(
+                user_data=update.effective_user.to_dict(),
+                action=update.message.text,
+                bot=context.bot  # ✅ берём bot из context
+            )
         elif text == "🟢 Новые акции для отправки":
             await send_formatted_new_offers(context.bot, update.effective_chat.id, context)
+            await log_user_action_to_personal_file(
+                user_data=update.effective_user.to_dict(),
+                action=update.message.text,
+                bot=context.bot  # ✅ берём bot из context
+            )
 
         elif text == "🔴 Завершённые акции для отправки":
             await send_formatted_expired_offers(context.bot, update.effective_chat.id, context)
+            await log_user_action_to_personal_file(
+                user_data=update.effective_user.to_dict(),
+                action=update.message.text,
+                bot=context.bot  # ✅ берём bot из context
+            )
 
         elif text == "🆕 Новые акции":
             await send_today_offers(context.bot, update.effective_chat.id)
+            await log_user_action_to_personal_file(
+                user_data=update.effective_user.to_dict(),
+                action=update.message.text,
+                bot=context.bot  # ✅ берём bot из context
+            )
 
         elif text == "📴 Завершённые акции":
             await send_expired_offers(context.bot, update.effective_chat.id)
+            await log_user_action_to_personal_file(
+                user_data=update.effective_user.to_dict(),
+                action=update.message.text,
+                bot=context.bot  # ✅ берём bot из context
+            )
 
         elif text == "🆕 Новые акции на дату":
             date = context.user_data.get("chosen_date")
             if date:
                 await send_new_offers_by_date(context.bot, update.effective_chat.id, date)
+                await log_user_action_to_personal_file(
+                    user_data=update.effective_user.to_dict(),
+                    action=update.message.text,
+                    bot=context.bot  # ✅ берём bot из context
+                )
             else:
                 await update.message.reply_text("⚠️ Сначала введите дату в формате ДД.ММ.")
 
@@ -191,6 +236,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             date = context.user_data.get("chosen_date")
             if date:
                 await send_expired_offers_by_date(context.bot, update.effective_chat.id, date)
+                await log_user_action_to_personal_file(
+                    user_data=update.effective_user.to_dict(),
+                    action=update.message.text,
+                    bot=context.bot  # ✅ берём bot из context
+                )
             else:
                 await update.message.reply_text("⚠️ Сначала введите дату в формате ДД.ММ.")
 
