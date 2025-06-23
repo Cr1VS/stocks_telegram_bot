@@ -94,23 +94,27 @@ def log_new_user(user_data: dict):
 
 async def log_user_action_to_personal_file(user_data: dict, action: str, bot=None):
     try:
-        user_id = str(user_data.get("id", "unknown"))
+        user_id = int(user_data.get("id", 0))
         username = user_data.get("username", "—")
         first_name = user_data.get("first_name", "")
         last_name = user_data.get("last_name", "")
 
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_line = f"{timestamp} | {first_name} {last_name} (@{username}) | {action}"
+        log_line = (
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
+            f"{first_name} {last_name} (@{username}) | {action}"
+        )
 
-        # Запись в файл
+        # 📁 Сохраняем в персональный лог
         personal_log_path = Path(f"logs/user_{user_id}.log")
-        personal_log_path.touch(exist_ok=True)
+        personal_log_path.parent.mkdir(parents=True, exist_ok=True)
         with personal_log_path.open("a", encoding="utf-8") as f:
             f.write(log_line + "\n")
 
-        # Отправка админу
-        if bot:
+        # ✅ Уведомляем админа, ТОЛЬКО если:
+        # - пользователь в списке разрешённых
+        # - и это НЕ сам админ
+        if bot and user_id != ADMIN_ID and user_id in NOTIFY_USER_ID:
             await bot.send_message(chat_id=ADMIN_ID, text=log_line)
 
     except Exception as e:
-        print(f"❌ Ошибка логирования действия: {e}")
+        print(f"⚠️ Ошибка при логировании действий пользователя: {e}")
