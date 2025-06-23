@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 # === Форматирование одного блока акции ===
 def format_block(block):
     def get(col_index, row):
@@ -25,6 +27,9 @@ def format_block(block):
     text += f"⚙️ МЕХАНИКА/% скидки: {get(3, main_row)}\n"
     text += "————————————————————\n"
     text += f"👥 УЧАСТНИКИ: {get(4, main_row)}\n"
+    if len(main_row) > 5 and main_row[5].strip():
+        text += "————————————————————\n"
+        text += f"🙅‍♂️ ИСКЛЮЧЕНИЯ: {main_row[5].strip()}\n"
     text += "————————————————————\n"
     text += "Есть\n"
     return text
@@ -84,3 +89,86 @@ def format_aromki_message(rows):
     text += "————————————————————\n"
     text += "Есть"
     return text
+
+
+def format_expired_offer_blocks(rows):
+    today = datetime.now().date()
+    result_lines = []
+
+    for row in rows:
+        try:
+            period = row[1].strip()
+            if "-" not in period:
+                continue
+            start_str, end_str = period.split("-")
+            end_str = end_str.strip()
+
+            # Автоматическое определение года
+            if "." in end_str and len(end_str.split(".")[-1]) == 2:
+                end_date = datetime.strptime(end_str, "%d.%m").date().replace(year=today.year)
+            elif "." in end_str and len(end_str.split(".")[-1]) == 4:
+                end_date = datetime.strptime(end_str, "%d.%m.%Y").date()
+            else:
+                continue
+
+            if end_date == today - timedelta(days=1):
+                text = f"🍀{period} {row[2].strip()} {row[3].strip()}"
+                result_lines.append(text)
+        except:
+            continue
+
+    if result_lines:
+        return "🔴 ЗАКОНЧИЛАСЬ АКЦИЯ🔴\n" + "\n".join(result_lines)
+    else:
+        return "✅ Завершённых акций нет для отправки."
+
+def format_new_offer_blocks(rows):
+    from collections import defaultdict
+    today = datetime.now().date()
+    grouped = defaultdict(list)
+
+    for row in rows:
+        try:
+            start_date_str = row[0].strip()
+
+            if len(start_date_str.split(".")[-1]) == 2:
+                start_date = datetime.strptime(start_date_str, "%d.%m").date().replace(year=today.year)
+            elif len(start_date_str.split(".")[-1]) == 4:
+                start_date = datetime.strptime(start_date_str, "%d.%m.%Y").date()
+            else:
+                start_date = datetime.strptime(start_date_str, "%d.%m").date().replace(year=today.year)
+
+            if start_date == today:
+                period = row[1].strip()
+                products_raw = row[2]
+                discount = row[3].strip()
+
+                # Очищаем от табов и неразрывных пробелов
+                products = [line.strip().replace('\t', '').replace('\xa0', ' ') for line in products_raw.splitlines() if line.strip()]
+                products_cleaned = "\n".join([f"***{p} {discount}".strip() for p in products])
+
+                # ✅ Продукты идут с новой строки после даты
+                grouped[period].append(products_cleaned)
+
+        except Exception:
+            continue
+
+    if grouped:
+        result_lines = ["🟢 НОВЫЕ АКЦИИ 🟢"]
+        for period, items in grouped.items():
+            for item in items:
+                result_lines.append(f"🍀{period}\n{item}")
+        return "\n".join(result_lines)
+    else:
+        return "📭 Новых акций нет для отправки."
+
+
+
+
+
+
+
+
+
+
+

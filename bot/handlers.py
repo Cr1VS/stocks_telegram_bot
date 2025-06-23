@@ -12,7 +12,9 @@ from bot.logic import (
     send_long,
     send_combined_blocks,
     send_new_offers_by_date, 
-    send_expired_offers_by_date
+    send_expired_offers_by_date,
+    send_formatted_new_offers,
+    send_formatted_expired_offers,
 )
 from bot.admin_commands import (
     stats_command,
@@ -27,7 +29,7 @@ from bot.config import ALLOWED_USERS, ADMIN_ID, BLOCKED_USERS
 
 # Логирование действий пользователей
 from utils.stats import update_stats
-from utils.logger import log_user_activity
+from utils.logger import log_user_activity, log_new_user, log_user_action_to_personal_file
 
 
 # Формирование сообщений для "Аромок"
@@ -43,8 +45,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             ["🥤 Акции Напитки", "🥡 Акции Снеки"],
             ["💧💨 Акции Аромки", "📦 Все акции"],
-            ["🆕 Новые акции", "📴 Завершённые акции"]
+            ["🆕 Новые акции", "📴 Завершённые акции"],
+            ["🟢 Новые акции для отправки", "🔴 Завершённые акции для отправки"]
         ]
+
 
         # Только если это админ, добавляем админ-кнопки
         if user_id == ADMIN_ID:
@@ -65,46 +69,86 @@ def is_blocked(user_id):
 
 
 # === Обработка ввода даты (например, 20.06) ===
+from datetime import datetime
+
 async def handle_date_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text.strip()
+    today_year = datetime.now().year
 
-    # Проверка формата даты (ДД.ММ)
-    try:
-        datetime.strptime(user_input, "%d.%m")
-        context.user_data["chosen_date"] = user_input
+    # Попробуем разобрать дату в разных форматах
+    parsed_date = None
+    formats = [
+        ("%d.%m", lambda dt: dt.replace(year=today_year)),
+        ("%d-%m", lambda dt: dt.replace(year=today_year)),
+        ("%d.%m.%y", lambda dt: dt),
+        ("%d-%m-%y", lambda dt: dt),
+        ("%d.%m.%Y", lambda dt: dt),
+        ("%d-%m-%Y", lambda dt: dt),
+    ]
+
+    for fmt, adjust_func in formats:
+        try:
+            dt = datetime.strptime(user_input, fmt)
+            dt = adjust_func(dt)
+            parsed_date = dt
+            break
+        except ValueError:
+            continue
+
+    if parsed_date:
+        context.user_data["chosen_date"] = parsed_date.strftime("%d.%m.%Y")
 
         keyboard = [
             ["🆕 Новые акции на дату", "📴 Завершённые акции на дату"],
+            ["🟢 Новые акции для отправки", "🔴 Завершённые акции для отправки"],
             ["⬅️ Назад"]
-        ]
+    ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            f"📅 Вы выбрали дату: {user_input}\nЧто показать?",
+            f"📅 Вы выбрали дату: {parsed_date.strftime('%d.%m.%Y')}\nЧто показать?",
             reply_markup=reply_markup
         )
-    except ValueError:
-        await update.message.reply_text("❌ Введите дату в формате ДД.ММ (например, 20.06)")
+    else:
+        await update.message.reply_text("❌ Введите дату в формате ДД.ММ, ДД-ММ или ДД-ММ-ГГ(ГГ)")
 
-# === Обработка всех входящих сообщений от пользователя ===
+
+
+# === Обработка всех входящих сообщений ===
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user = update.effective_user
         user_id = user.id
         text = update.message.text.strip()
 
-        # Проверка авторизации
-        if is_blocked(user_id):
-            await update.message.reply_text("⛔️ У вас нет доступа к этому боту.")
-            return
-
-        # Логгируем и обновляем статистику
+        # Логгируем нового пользователя и обновляем статистику
+        log_new_user({
+            "id": user.id,
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name
+        })
         update_stats(user.id, user.username, text)
+
+        # Логгируем действия
         log_user_activity({
             "id": user.id,
             "username": user.username,
             "first_name": user.first_name,
             "last_name": user.last_name
         }, text)
+
+        # Логгируем в персональный лог
+        log_user_action_to_personal_file({
+            "id": user.id,
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name
+        }, text)
+
+        # Блокировка
+        if is_blocked(user_id):
+            await update.message.reply_text("⛔️ У вас нет доступа к этому боту.")
+            return
 
         # === Обработка команд ===
         if text == "🥤 Акции Напитки":
@@ -124,6 +168,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_long(context.bot, update.effective_chat.id, msg)
             await send_sneki_full(context.bot, update.effective_chat.id)
             await send_drinks_full(context.bot, update.effective_chat.id)
+        elif text == "🟢 Новые акции для отправки":
+            await send_formatted_new_offers(context.bot, update.effective_chat.id, context)
+
+        elif text == "🔴 Завершённые акции для отправки":
+            await send_formatted_expired_offers(context.bot, update.effective_chat.id, context)
 
         elif text == "🆕 Новые акции":
             await send_today_offers(context.bot, update.effective_chat.id)
@@ -144,6 +193,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await send_expired_offers_by_date(context.bot, update.effective_chat.id, date)
             else:
                 await update.message.reply_text("⚠️ Сначала введите дату в формате ДД.ММ.")
+
         elif text == "⬅️ Назад":
             await start(update, context)
 
@@ -158,10 +208,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif text == "ℹ️ Версия бота":
             await version_command(update, context)
-        elif len(text) == 5 and "." in text:
+
+        elif any(sep in text for sep in [".", "-"]) and any(char.isdigit() for char in text):
             await handle_date_input(update, context)
-            return
+
         else:
             await update.message.reply_text("🤖 Неизвестная команда. Пожалуйста, выбери из меню.")
+
     except Exception as e:
         await update.message.reply_text(f"⚠️ Произошла ошибка: {e}")
+
+
