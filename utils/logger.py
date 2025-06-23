@@ -113,7 +113,7 @@ async def log_user_action_to_personal_file(user_data: dict, action: str, bot=Non
         # ✅ Уведомляем админа, ТОЛЬКО если:
         # - пользователь в списке разрешённых
         # - и это НЕ сам админ
-        if bot and user_id != ADMIN_ID and user_id in NOTIFY_USER_ID:
+        if bot and user_id != ADMIN_ID and user_id == NOTIFY_USER_ID:
             await bot.send_message(chat_id=ADMIN_ID, text=log_line)
 
     except Exception as e:
