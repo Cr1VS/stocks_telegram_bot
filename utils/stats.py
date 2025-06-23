@@ -22,12 +22,17 @@ def update_stats(user_id, username, action):
 
     save_stats(stats)
 
+# Загружаем статистику
 def load_stats():
     if STATS_FILE.exists():
         with open(STATS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"total_visits": 0, "last_users": []}
+    return {
+        "total_visits": 0,
+        "last_users": []
+    }
 
+# Сохраняем статистику
 def save_stats(data):
     with open(STATS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
